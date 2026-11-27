@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kho Truyện</title>
+<style>
+:root{--bg:#faf7f2;--fg:#222;--mut:#777;--card:#fff;--ac:#b4532a;--bd:#e5ded3;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15171a;--fg:#e8e6e1;--mut:#9a9a9a;--card:#1f2226;--ac:#e08a5e;--bd:#33373d;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#15171a;--fg:#e8e6e1;--mut:#9a9a9a;--card:#1f2226;--ac:#e08a5e;--bd:#33373d;color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.w{max-width:900px;margin:0 auto;padding:16px}
+h1{font-size:24px;margin:0}
+.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+.bar .sp{flex:1}
+button{font:inherit;cursor:pointer;border:1px solid var(--bd);background:var(--card);color:var(--fg);padding:8px 12px;border-radius:10px}
+button.p{background:var(--ac);border-color:var(--ac);color:#fff}
+button.d{color:#c0392b}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;overflow:hidden;cursor:pointer}
+.card .t{padding:8px 10px}
+.card b{display:block;font-size:15px;line-height:1.3}
+.cv{aspect-ratio:3/4;width:100%;object-fit:cover;display:flex;align-items:center;justify-content:center;font-size:48px;color:#fff;background:linear-gradient(135deg,var(--ac),#6b3a8a)}
+.mut{color:var(--mut);font-size:14px}
+.empty{text-align:center;padding:48px 16px;color:var(--mut)}
+.head{display:flex;gap:16px;margin-bottom:16px}
+.head .cv{width:130px;flex:none;border-radius:10px;font-size:40px}
+.head p{margin:6px 0;white-space:pre-wrap}
+.ch{display:flex;gap:12px;align-items:center;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:8px;margin-bottom:8px;cursor:pointer}
+.ch .cv{width:48px;height:64px;aspect-ratio:auto;font-size:20px;border-radius:6px;flex:none}
+.ch div.m{flex:1;min-width:0}
+.ch b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rd{min-height:100vh;background:var(--rb);color:var(--rf)}
+.t-light{--rb:#fff;--rf:#222}.t-sepia{--rb:#f4ecd8;--rf:#433422}.t-dark{--rb:#16181c;--rf:#d6d6d6}
+.rd .top{position:sticky;top:env(safe-area-inset-top,0px);flex-wrap:wrap;display:flex;gap:6px;align-items:center;padding:8px 12px;background:var(--rb);border-bottom:1px solid #8884;z-index:5}
+.rd .top button{background:transparent;color:inherit;border-color:#8886}
+.rd .top .sp{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.rd article{max-width:720px;margin:0 auto;padding:20px 18px 40px;font-family:Georgia,"Times New Roman",serif}
+.rd article img{width:100%;max-height:360px;object-fit:cover;border-radius:12px;margin-bottom:16px}
+.rd article h2{text-align:center;margin:0 0 20px}
+.rd article p{margin:0 0 1em;text-indent:1.5em;line-height:1.8}
+.rd .nav{display:flex;justify-content:space-between;gap:8px;max-width:720px;margin:0 auto;padding:0 18px 40px}
+.rd .nav button{background:transparent;color:inherit;border-color:#8886}
+.tb{display:flex;gap:6px;width:100%;align-items:center;flex-wrap:wrap}.tb:empty{display:none}.tb select{font:inherit;background:transparent;color:inherit;border:1px solid #8886;border-radius:10px;padding:7px 6px;max-width:42vw}.tb option{color:#222}.rd article p{cursor:pointer}.rd article p.on{background:#e0a03a44;border-radius:6px}
+dialog{border:1px solid var(--bd);border-radius:14px;background:var(--card);color:var(--fg);width:min(560px,94vw);padding:16px}
+dialog::backdrop{background:#0008}
+label{display:block;margin:10px 0 4px;font-size:14px;color:var(--mut)}
+input[type=text],textarea{width:100%;font:inherit;padding:8px 10px;border-radius:8px;border:1px solid var(--bd);background:var(--bg);color:var(--fg)}
+textarea{min-height:200px;resize:vertical}
+.row{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
+.pv{max-height:120px;border-radius:8px;margin-top:6px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<dialog id="dlg"></dialog>
+<script>
+let D={stories:[],set:{fs:19,th:'light'}},S={v:'lib'},tmp=null;
+const $=s=>document.querySelector(s),
+esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])),
+uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const db=()=>new Promise((res,rej)=>{const r=indexedDB.open('khotruyen',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+async function load(){try{const d=await db();return await new Promise(res=>{const q=d.transaction('kv').objectStore('kv').get('lib');q.onsuccess=()=>res(q.result);q.onerror=()=>res()})}catch(e){}}
+async function save(){try{const d=await db();d.transaction('kv','readwrite').objectStore('kv').put(D,'lib')}catch(e){}}
+const st=id=>D.stories.find(s=>s.id===id);
+const cover=(o,t)=>o.cover?`<img class="cv" src="${o.cover}" alt="">`:`<div class="cv">${esc((t||'?').trim().charAt(0).toUpperCase())}</div>`;
+
+function readImg(file,max=700){return new Promise((res,rej)=>{const u=URL.createObjectURL(file),i=new Image();i.onload=()=>{const k=Math.min(1,max/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=Math.round(i.width*k);c.height=Math.round(i.height*k);c.getContext('2d').drawImage(i,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL('image/jpeg',.82))};i.onerror=rej;i.src=u})}
+
+function render(){
+ const a=$('#app');
+ document.documentElement.scrollTop=0;
+ if(S.v==='lib'){
+  a.innerHTML=`<div class="w"><div class="bar"><h1>📚 Kho Truyện</h1><span class="sp"></span><button class="p" onclick="storyForm()">+ Thêm truyện</button></div>`+
+  (D.stories.length?`<div class="grid">${D.stories.map(s=>`<div class="card" onclick="openStory('${s.id}')">${cover(s,s.title)}<div class="t"><b>${esc(s.title)}</b><span class="mut">${s.chapters.length} chương</span></div></div>`).join('')}</div>`:`<div class="empty">Chưa có truyện nào.<br>Bấm “Thêm truyện” để bắt đầu.<br><br>Dữ liệu được lưu ngay trong trình duyệt này.</div>`)+`</div>`;
+ }else if(S.v==='story'){
+  const s=st(S.sid);
+  a.innerHTML=`<div class="w"><div class="bar"><button onclick="go('lib')">← Kho truyện</button><span class="sp"></span><button onclick="storyForm('${s.id}')">Sửa truyện</button></div>
+  <div class="head">${cover(s,s.title)}<div><h1>${esc(s.title)}</h1><div class="mut">${esc(s.author||'Chưa rõ tác giả')} · ${s.chapters.length} chương</div><p>${esc(s.desc)}</p></div></div>
+  <div class="bar"><button class="p" onclick="chapterForm('${s.id}')">+ Thêm chương</button><button onclick="splitFile('${s.id}')">Tách chương từ file .txt</button></div>
+  ${s.chapters.length?s.chapters.map((c,i)=>`<div class="ch" onclick="read('${s.id}','${c.id}')">${cover(c,String(i+1))}<div class="m"><b>${esc(c.title)}</b><span class="mut">${c.text.split(/\s+/).filter(Boolean).length} từ</span></div><button onclick="event.stopPropagation();chapterForm('${s.id}','${c.id}')">Sửa</button></div>`).join(''):`<div class="empty">Truyện chưa có chương nào.</div>`}</div>`;
+ }else{
+  const s=st(S.sid),i=s.chapters.findIndex(c=>c.id===S.cid),c=s.chapters[i],f=D.set;
+  a.innerHTML=`<div class="rd t-${f.th}"><div class="top"><button onclick="openStory('${s.id}')">←</button><span class="sp">${esc(s.title)}</span><button onclick="fs(-1)">A−</button><button onclick="fs(1)">A+</button><button onclick="th()">${{light:'☀️',sepia:'📜',dark:'🌙'}[f.th]}</button><button onclick="ttsToggle()">🔊</button><div id="tb" class="tb">${barHTML()}</div></div>
+  <article style="font-size:${f.fs}px">${c.cover?`<img src="${c.cover}" alt="">`:''}<h2>${esc(c.title)}</h2>${c.text.split(/\n+/).filter(l=>l.trim()).map((l,i)=>`<p id="p${i}" onclick="ttsFrom(${i})">${esc(l.trim())}</p>`).join('')}</article>
+  <div class="nav"><button ${i<1?'disabled':''} onclick="read('${s.id}','${s.chapters[i-1]?.id}')">← Chương trước</button><button ${i>=s.chapters.length-1?'disabled':''} onclick="read('${s.id}','${s.chapters[i+1]?.id}')">Chương sau →</button></div></div>`;
+ }
+}
+function go(v){ttsStop();S={v};render()}
+function openStory(id){ttsStop();S={v:'story',sid:id};render()}
+function read(sid,cid,keep){if(!keep)ttsStop();S={v:'read',sid,cid};render()}
+function fs(d){D.set.fs=Math.max(14,Math.min(32,D.set.fs+d*2));save();render()}
+function th(){const o=['light','sepia','dark'];D.set.th=o[(o.indexOf(D.set.th)+1)%3];save();render()}
+
+function dlg(h){const d=$('#dlg');d.innerHTML=h;d.showModal()}
+function close_(){$('#dlg').close()}
+async function pickCover(inp){if(inp.files[0]){try{tmp=await readImg(inp.files[0]);$('#pv').innerHTML=`<img class="pv" src="${tmp}" alt="">`}catch(e){alert('Không đọc được ảnh này.')}}}
+
+function storyForm(id){
+ const s=id?st(id):{};tmp=s.cover||null;
+ dlg(`<h3 style="margin-top:0">${id?'Sửa truyện':'Thêm truyện'}</h3>
+ <label>Tên truyện</label><input type="text" id="f1" value="${esc(s.title)}">
+ <label>Tác giả</label><input type="text" id="f2" value="${esc(s.author)}">
+ <label>Giới thiệu</label><textarea id="f3" style="min-height:90px">${esc(s.desc)}</textarea>
+ <label>Ảnh bìa truyện</label><input type="file" accept="image/*" onchange="pickCover(this)"><div id="pv">${tmp?`<img class="pv" src="${tmp}" alt="">`:''}</div>
+ <div class="row">${id?`<button class="d" onclick="delStory('${id}')">Xóa truyện</button>`:''}<span style="flex:1"></span><button onclick="close_()">Hủy</button><button class="p" onclick="saveStory('${id||''}')">Lưu</button></div>`);
+}
+function saveStory(id){
+ const t=$('#f1').value.trim();if(!t){alert('Hãy nhập tên truyện.');return}
+ let s=id?st(id):{id:uid(),chapters:[]};
+ Object.assign(s,{title:t,author:$('#f2').value.trim(),desc:$('#f3').value.trim(),cover:tmp});
+ if(!id)D.stories.unshift(s);
+ save();close_();id?openStory(id):go('lib');
+}
+function delStory(id){if(confirm('Xóa truyện này cùng toàn bộ chương?')){D.stories=D.stories.filter(s=>s.id!==id);save();close_();go('lib')}}
+
+function chapterForm(sid,cid){
+ const s=st(sid),c=cid?s.chapters.find(x=>x.id===cid):{};tmp=c.cover||null;
+ dlg(`<h3 style="margin-top:0">${cid?'Sửa chương':'Thêm chương'}</h3>
+ <label>Tên chương</label><input type="text" id="f1" value="${esc(c.title||'Chương '+(s.chapters.length+1))}">
+ <label>Ảnh bìa chương (không bắt buộc)</label><input type="file" accept="image/*" onchange="pickCover(this)"><div id="pv">${tmp?`<img class="pv" src="${tmp}" alt="">`:''}</div>
+ <label>Tải văn bản (.txt) hoặc dán nội dung bên dưới</label><input type="file" accept=".txt,text/plain" onchange="loadTxt(this)">
+ <textarea id="f3" style="margin-top:8px">${esc(c.text)}</textarea>
+ <div class="row">${cid?`<button class="d" onclick="delCh('${sid}','${cid}')">Xóa chương</button>`:''}<span style="flex:1"></span><button onclick="close_()">Hủy</button><button class="p" onclick="saveCh('${sid}','${cid||''}')">Lưu</button></div>`);
+}
+async function loadTxt(inp){const f=inp.files[0];if(!f)return;$('#f3').value=await f.text();if(!$('#f1').value.trim())$('#f1').value=f.name.replace(/\.txt$/i,'')}
+function saveCh(sid,cid){
+ const s=st(sid),t=$('#f1').value.trim(),x=$('#f3').value;
+ if(!t||!x.trim()){alert('Cần có tên chương và nội dung.');return}
+ if(cid){Object.assign(s.chapters.find(c=>c.id===cid),{title:t,text:x,cover:tmp})}
+ else s.chapters.push({id:uid(),title:t,text:x,cover:tmp});
+ save();close_();openStory(sid);
+}
+function delCh(sid,cid){if(confirm('Xóa chương này?')){const s=st(sid);s.chapters=s.chapters.filter(c=>c.id!==cid);save();close_();openStory(sid)}}
+
+function splitFile(sid){
+ const i=document.createElement('input');i.type='file';i.accept='.txt,text/plain';
+ i.onchange=async()=>{
+  const f=i.files[0];if(!f)return;
+  const lines=(await f.text()).split(/\r?\n/),re=/^\s*(chương|chapter|hồi)\s+[\dIVXLC]+\b.*$/i,out=[];let cur=null;
+  for(const l of lines){if(re.test(l)){cur={id:uid(),title:l.trim(),text:'',cover:null};out.push(cur)}else{if(!cur){if(!l.trim())continue;cur={id:uid(),title:f.name.replace(/\.txt$/i,''),text:'',cover:null};out.push(cur)}cur.text+=l+'\n'}}
+  const ok=out.filter(c=>c.text.trim());
+  if(!ok.length){alert('File trống.');return}
+  if(!confirm(`Tìm thấy ${ok.length} chương. Thêm vào truyện?`))return;
+  st(sid).chapters.push(...ok);save();openStory(sid);
+ };
+ i.click();
+}
+
+/* ===== Đọc thành tiếng ===== */
+const TT={on:false,paused:false,k:0,ch:[],rate:1,voice:'',tok:0},synth=window.speechSynthesis;
+const viVoices=()=>synth?synth.getVoices().filter(v=>/^vi/i.test(v.lang)):[];
+function chunks(text){const out=[];
+ text.split(/\n+/).filter(l=>l.trim()).forEach((l,p)=>{
+  const push=t=>{(t.match(/[\s\S]{1,250}(\s|$)/g)||[t]).forEach(x=>x.trim()&&out.push({p,t:x.trim()}))};
+  let buf='';
+  (l.trim().match(/[^.!?…]+[.!?…]*\s*/g)||[l]).forEach(s=>{if(buf&&(buf+s).length>200){push(buf);buf=s}else buf+=s});
+  if(buf)push(buf);
+ });return out}
+function barHTML(){if(!TT.on)return'';const vs=viVoices();
+ return `<button onclick="ttsPause()">${TT.paused?'▶':'⏸'}</button><button onclick="ttsStop()">⏹</button><select onchange="TT.rate=+this.value;ttsRestart()">${[.75,1,1.25,1.5,2].map(r=>`<option value="${r}" ${r===TT.rate?'selected':''}>${r}x</option>`).join('')}</select>`+(vs.length?`<select onchange="TT.voice=this.value;ttsRestart()">${vs.map(v=>`<option value="${esc(v.voiceURI)}" ${v.voiceURI===TT.voice?'selected':''}>${esc(v.name)}</option>`).join('')}</select>`:`<span style="font-size:13px;opacity:.8">Giọng mặc định của thiết bị</span>`)}
+function bar(){const e=$('#tb');if(e)e.innerHTML=barHTML()}
+function hl(){document.querySelectorAll('.rd p.on').forEach(e=>e.classList.remove('on'));if(!TT.on||!TT.ch[TT.k])return;const e=$('#p'+TT.ch[TT.k].p);if(e){e.classList.add('on');e.scrollIntoView({block:'center',behavior:'smooth'})}}
+function speak(){
+ const t=++TT.tok;
+ if(TT.k>=TT.ch.length){ttsNext();return}
+ const u=new SpeechSynthesisUtterance(TT.ch[TT.k].t),vs=viVoices(),v=vs.find(x=>x.voiceURI===TT.voice)||vs[0];
+ u.lang='vi-VN';u.rate=TT.rate;
+ if(v){u.voice=v;u.lang=v.lang;if(!TT.voice){TT.voice=v.voiceURI;bar()}}
+ u.onend=()=>{if(t===TT.tok&&TT.on){TT.k++;speak()}};
+ hl();synth.speak(u);
+}
+function ttsStart(p=0){
+ if(!synth){alert('Trình duyệt này không hỗ trợ đọc thành tiếng.');return}
+ const c=st(S.sid).chapters.find(x=>x.id===S.cid);
+ synth.cancel();TT.ch=chunks(c.text);TT.k=Math.max(0,TT.ch.findIndex(x=>x.p>=p));TT.on=true;TT.paused=false;bar();speak();
+}
+function ttsToggle(){TT.on?ttsStop():ttsStart(0)}
+function ttsFrom(i){ttsStart(i)}
+function ttsRestart(){if(!TT.on)return;TT.paused=false;synth.cancel();speak();bar()}
+function ttsPause(){if(TT.paused)synth.resume();else synth.pause();TT.paused=!TT.paused;bar()}
+function ttsStop(){TT.on=false;TT.paused=false;TT.tok++;if(synth)synth.cancel();bar();hl()}
+function ttsNext(){const s=st(S.sid),i=s.chapters.findIndex(c=>c.id===S.cid),n=s.chapters[i+1];if(n){read(s.id,n.id,true);ttsStart(0)}else ttsStop()}
+if(synth){synth.onvoiceschanged=()=>{if(TT.on)bar()};addEventListener('pagehide',()=>synth.cancel())}
+
+(async()=>{const d=await load();if(d&&d.stories)D=Object.assign(D,d);render()})();
+</script>
+</body>
+</html>
