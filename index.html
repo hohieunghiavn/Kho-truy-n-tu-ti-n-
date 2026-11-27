@@ -150,7 +150,7 @@ function splitFile(sid){
 }
 
 /* ===== Đọc thành tiếng ===== */
-const TT={on:false,paused:false,k:0,ch:[],rate:1,voice:'',tok:0},synth=window.speechSynthesis;
+const TT={on:false,paused:false,k:0,ch:[],rate:1,pitch:.6,voice:'',tok:0},synth=window.speechSynthesis;
 const viVoices=()=>synth?synth.getVoices().filter(v=>/^vi/i.test(v.lang)):[];
 function chunks(text){const out=[];
  text.split(/\n+/).filter(l=>l.trim()).forEach((l,p)=>{
@@ -160,14 +160,14 @@ function chunks(text){const out=[];
   if(buf)push(buf);
  });return out}
 function barHTML(){if(!TT.on)return'';const vs=viVoices();
- return `<button onclick="ttsPause()">${TT.paused?'▶':'⏸'}</button><button onclick="ttsStop()">⏹</button><select onchange="TT.rate=+this.value;ttsRestart()">${[.75,1,1.25,1.5,2].map(r=>`<option value="${r}" ${r===TT.rate?'selected':''}>${r}x</option>`).join('')}</select>`+(vs.length?`<select onchange="TT.voice=this.value;ttsRestart()">${vs.map(v=>`<option value="${esc(v.voiceURI)}" ${v.voiceURI===TT.voice?'selected':''}>${esc(v.name)}</option>`).join('')}</select>`:`<span style="font-size:13px;opacity:.8">Giọng mặc định của thiết bị</span>`)}
+ return `<button onclick="ttsPause()">${TT.paused?'▶':'⏸'}</button><button onclick="ttsStop()">⏹</button><select onchange="TT.rate=+this.value;ttsRestart()">${[.75,1,1.25,1.5,2].map(r=>`<option value="${r}" ${r===TT.rate?'selected':''}>${r}x</option>`).join('')}</select><select onchange="TT.pitch=+this.value;ttsRestart()">${[[.6,'Giọng trầm'],[.8,'Giọng vừa'],[1,'Giọng thường']].map(([p,n])=>`<option value="${p}" ${p===TT.pitch?'selected':''}>${n}</option>`).join('')}</select>`+(vs.length?`<select onchange="TT.voice=this.value;ttsRestart()">${vs.map(v=>`<option value="${esc(v.voiceURI)}" ${v.voiceURI===TT.voice?'selected':''}>${esc(v.name)}</option>`).join('')}</select>`:`<span style="font-size:13px;opacity:.8">Giọng mặc định của thiết bị</span>`)}
 function bar(){const e=$('#tb');if(e)e.innerHTML=barHTML()}
 function hl(){document.querySelectorAll('.rd p.on').forEach(e=>e.classList.remove('on'));if(!TT.on||!TT.ch[TT.k])return;const e=$('#p'+TT.ch[TT.k].p);if(e){e.classList.add('on');e.scrollIntoView({block:'center',behavior:'smooth'})}}
 function speak(){
  const t=++TT.tok;
  if(TT.k>=TT.ch.length){ttsNext();return}
- const u=new SpeechSynthesisUtterance(TT.ch[TT.k].t),vs=viVoices(),v=vs.find(x=>x.voiceURI===TT.voice)||vs[0];
- u.lang='vi-VN';u.rate=TT.rate;
+ const u=new SpeechSynthesisUtterance(TT.ch[TT.k].t),vs=viVoices(),v=vs.find(x=>x.voiceURI===TT.voice)||vs.find(x=>/nam\s?minh|male|\bnam\b/i.test(x.name))||vs[0];
+ u.lang='vi-VN';u.rate=TT.rate;u.pitch=TT.pitch;
  if(v){u.voice=v;u.lang=v.lang;if(!TT.voice){TT.voice=v.voiceURI;bar()}}
  u.onend=()=>{if(t===TT.tok&&TT.on){TT.k++;speak()}};
  hl();synth.speak(u);
@@ -175,15 +175,45 @@ function speak(){
 function ttsStart(p=0){
  if(!synth){alert('Trình duyệt này không hỗ trợ đọc thành tiếng.');return}
  const c=st(S.sid).chapters.find(x=>x.id===S.cid);
- synth.cancel();TT.ch=chunks(c.text);TT.k=Math.max(0,TT.ch.findIndex(x=>x.p>=p));TT.on=true;TT.paused=false;bar();speak();
+ synth.cancel();TT.ch=chunks(c.text);TT.k=Math.max(0,TT.ch.findIndex(x=>x.p>=p));TT.on=true;TT.paused=false;keep(true);bar();speak();
 }
 function ttsToggle(){TT.on?ttsStop():ttsStart(0)}
 function ttsFrom(i){ttsStart(i)}
 function ttsRestart(){if(!TT.on)return;TT.paused=false;synth.cancel();speak();bar()}
-function ttsPause(){if(TT.paused)synth.resume();else synth.pause();TT.paused=!TT.paused;bar()}
-function ttsStop(){TT.on=false;TT.paused=false;TT.tok++;if(synth)synth.cancel();bar();hl()}
+function ttsPause(){if(TT.paused)synth.resume();else synth.pause();TT.paused=!TT.paused;if('mediaSession' in navigator)navigator.mediaSession.playbackState=TT.paused?'paused':'playing';bar()}
+function ttsStop(){TT.on=false;TT.paused=false;TT.tok++;if(synth)synth.cancel();keep(false);bar();hl()}
 function ttsNext(){const s=st(S.sid),i=s.chapters.findIndex(c=>c.id===S.cid),n=s.chapters[i+1];if(n){read(s.id,n.id,true);ttsStart(0)}else ttsStop()}
-if(synth){synth.onvoiceschanged=()=>{if(TT.on)bar()};addEventListener('pagehide',()=>synth.cancel())}
+/* Phát nền: âm thanh im lặng + Media Session để điều khiển trên màn hình khóa */
+let au=null,msSet=false;
+function silentWav(){const n=8000,b=new Uint8Array(44+n),d=new DataView(b.buffer),w=(o,s)=>[...s].forEach((c,i)=>b[o+i]=c.charCodeAt(0));w(0,'RIFF');d.setUint32(4,36+n,true);w(8,'WAVEfmt ');d.setUint32(16,16,true);d.setUint16(20,1,true);d.setUint16(22,1,true);d.setUint32(24,8000,true);d.setUint32(28,8000,true);d.setUint16(32,1,true);d.setUint16(34,8,true);w(36,'data');d.setUint32(40,n,true);b.fill(128,44);return URL.createObjectURL(new Blob([b],{type:'audio/wav'}))}
+function keep(on){
+ try{
+  if(on){
+   if(!au){au=new Audio(silentWav());au.loop=true}
+   au.play().catch(()=>{});
+   if('mediaSession' in navigator){
+    const s=st(S.sid),c=s.chapters.find(x=>x.id===S.cid),img=c.cover||s.cover,ms=navigator.mediaSession;
+    ms.metadata=new MediaMetadata({title:c.title,artist:s.author||'Kho Truyện',album:s.title,artwork:img?[{src:img,sizes:'512x512',type:'image/jpeg'}]:[]});
+    ms.playbackState='playing';
+    if(!msSet){msSet=true;
+     ms.setActionHandler('play',()=>{if(TT.paused)ttsPause()});
+     ms.setActionHandler('pause',()=>{if(!TT.paused)ttsPause()});
+     ms.setActionHandler('stop',ttsStop);
+     ms.setActionHandler('nexttrack',()=>ttsGo(1));
+     ms.setActionHandler('previoustrack',()=>ttsGo(-1));
+    }
+   }
+  }else{
+   if(au)au.pause();
+   if('mediaSession' in navigator)navigator.mediaSession.playbackState='none';
+  }
+ }catch(e){}
+}
+function ttsGo(d){const s=st(S.sid),i=s.chapters.findIndex(c=>c.id===S.cid),n=s.chapters[i+d];if(n){read(s.id,n.id,true);ttsStart(0)}}
+if(synth){
+ synth.onvoiceschanged=()=>{if(TT.on)bar()};
+ document.addEventListener('visibilitychange',()=>{if(TT.on&&!TT.paused&&!synth.speaking){synth.cancel();speak()}});
+}
 
 (async()=>{const d=await load();if(d&&d.stories)D=Object.assign(D,d);render()})();
 </script>
